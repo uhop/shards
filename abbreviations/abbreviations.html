@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Abbreviations</title>
+    <script src="http://ajax.googleapis.com/ajax/libs/dojo/1.4/dojo/dojo.xd.js"></script>
+    <script>
+        function getAllStyles(){
+            var names = [], style = dojo.body().style;
+            for(var name in style){
+                var value = style[name];
+                if(!dojo.isFunction(value)){
+                    names.push(name);
+                }
+            }
+            return names;
+        }
+        
+        function getAllAttrs(){
+            var names = [], node = dojo.body();
+            for(var name in node){
+                if(!/^[_A-Z]+$/.test(name)){
+                    var value = node[name];
+                    if(!dojo.isFunction(value)){
+                        names.push(name);
+                    }
+                }
+            }
+            return names;
+        }
+        
+        function abbr(name){
+            return dojo.map(name.replace(/([A-Z])/g, "|$1").split("|"), function(name){
+                        return name.charAt(0);
+                    }).join("").toLowerCase();
+        }
+        
+        function makeAbbrs(names){
+            var dict = {};
+            dojo.forEach(names, function(name){
+                var a = abbr(name);
+                if(dict.hasOwnProperty(a)){
+                   dict[a].push(name);
+                }else{
+                    dict[a] = [name];
+                }
+            });
+            return dict;
+        }
+        
+        function keys(dict){
+            var t = [];
+            for(var name in dict){
+                if(dict.hasOwnProperty(name)){
+                    t.push(name);
+                }
+            }
+            return t;
+        }
+        
+        function printNames(names){
+            return names.slice(0).sort().join(", ");
+        }
+        
+        function print(dict, parent){
+            var t = dojo.map(keys(dict).sort(), function(name){
+                    return "<tr><td>" + name + "</td><td>" +
+                            (dict[name].length > 1 ? dict[name].length : "&nbsp;") +
+                            "</td><td>" + printNames(dict[name]) + "</td></tr>";
+                });
+            dojo.place("<table><tbody>" + t.join("") + "</tbody></table>", parent);
+        }
+        
+        function printTable(names, parent){
+            var abbrs = makeAbbrs(names), ks = keys(abbrs);
+            dojo.place(
+                dojo.replace(
+                    "<p><strong>{names.length}</strong> names, <strong>{keys.length}</strong> abbreviations (<strong>{dups.length}</strong> duplicates).</p>",
+                    {
+                        names: names,
+                        keys:  ks,
+                        dups:  dojo.filter(ks, function(key){ return abbrs[key].length > 1; })
+                    }
+                ),
+                parent
+            );
+            print(abbrs, parent);
+        }
+        
+        dojo.addOnLoad(function(){
+            printTable(getAllStyles(), "styles");
+            printTable(getAllAttrs(),  "attrs");
+        });
+    </script>
+</head>
+<body>
+    <h1>Abbreviations</h1>
+    <h2>Style names</h2>
+    <div id="styles"></div>
+    <h2>Attribute names</h2>
+    <div id="attrs"></div>
+</body>
+</html>
