@@ -1,132 +1,263 @@
 <!doctype html>
 <html>
-    <head>
-        <title>Testing parser</title>
-        <script src="https://ajax.googleapis.com/ajax/libs/dojo/1.5/dojo/dojo.xd.js"></script>
-        <script src="../opp.js"></script>
-        <script>
-            var scanner = {
-                    input:    "",
-                    getToken: function(){
-                        // skip whitespaces
-                        this.input = this.input.replace(/^\s+/, "");
-                        var match = this.input.match(/^[A-Za-z_]\w*/);
-                        if(match){
-                            this.input = this.input.substr(match[0].length);
-                            return {
-                                name: "id",
-                                value: match[0]
-                            };
-                        }
-                        match = this.input.match(/^\d+(\.\d*)?/);
-                        if(match){
-                            this.input = this.input.substr(match[0].length);
-                            return {
-                                name: "num",
-                                value: match[0]
-                            };
-                        }
-                        match = this.input.match(/^(\+|\-|\/|\*|\(|\)|\,)/);
-                        if(match){
-                            this.input = this.input.substr(match[0].length);
-                            return {
-                                name:  match[0]
-                            };
-                        }
-                        return {
-                            name: "eos"
-                        };
-                    }
-                };
+	<head>
+		<title>Testing parser</title>
+		<script src="https://ajax.googleapis.com/ajax/libs/dojo/1.5/dojo/dojo.xd.js"></script>
+		<script src="../opp.js"></script>
+		<script>
+			var scanner = {
+					input:    "",
+					getToken: function(){
+						// skip whitespaces
+						this.input = this.input.replace(/^\s+/, "");
+						var match = this.input.match(/^[A-Za-z_]\w*/);
+						if(match){
+							this.input = this.input.substr(match[0].length);
+							return {
+								name: "id",
+								value: match[0]
+							};
+						}
+						match = this.input.match(/^\d+(\.\d*)?/);
+						if(match){
+							this.input = this.input.substr(match[0].length);
+							return {
+								name: "num",
+								value: match[0]
+							};
+						}
+						match = this.input.match(/^(\+|\-|\/|\*|\(|\)|\,)/);
+						if(match){
+							this.input = this.input.substr(match[0].length);
+							return {
+								name:  match[0]
+							};
+						}
+						return {
+							name: "eos"
+						};
+					}
+				};
 
-            var brackets = "()";
+			var brackets = "()";
 
-            var table = [
-                    // values
-                    ["id",  12000, 12000, "operand",  "operator"],
-                    ["num", 12000, 12000, "operand",  "operator"],
-                    // arguments and parentheses
-                    ["(",   11998,     0, "operator", "operand", "arg"],    // argument block
-                    [",",    2001,  2000, "operator", "operand" ],          // argument list
-                    ["(",   12000,     0, "operand",  "operand" ],
-                    [")",       0, 12000, "operator", "operator"],
-                    // arithmetic operators
-                    ["+",    7000,  7001, "operator", "operand" ],
-                    ["-",    7000,  7001, "operator", "operand" ],
-                    ["*",    8000,  8001, "operator", "operand" ],
-                    ["/",    8000,  8001, "operator", "operand" ],
-                    ["-",   12000,  7001, "operand",  "operand", "arg"],
-                    // end of stream
-                    ["eos",    -1,    -1, "operator", "operator"]
-                ];
+			var table = [
+					// values
+					["id",  12000, 12000, "operand",  "operator"],
+					["num", 12000, 12000, "operand",  "operator"],
+					// arguments and parentheses
+					["(",   11998,     0, "operator", "operand", "arg"],    // argument block
+					[",",    2001,  2000, "operator", "operand" ],          // argument list
+					["(",   12000,     0, "operand",  "operand" ],
+					[")",       0, 12000, "operator", "operator"],
+					// arithmetic operators
+					["+",    7000,  7001, "operator", "operand" ],
+					["-",    7000,  7001, "operator", "operand" ],
+					["*",    8000,  8001, "operator", "operand" ],
+					["/",    8000,  8001, "operator", "operand" ],
+					["-",   12000,  7001, "operand",  "operand", "arg"],
+					// end of stream
+					["eos",    -1,    -1, "operator", "operator"]
+				];
 
-            function convertItem(name, iPrty, oPrty, before, after, extra){
-                return {
-                    name:   name,
-                    iPrty:  iPrty,
-                    oPrty:  oPrty,
-                    before: before,
-                    after:  after,
-                    extra:  extra
-                };
-            }
+			function convertItem(name, iPrty, oPrty, before, after, extra){
+				return {
+					name:   name,
+					iPrty:  iPrty,
+					oPrty:  oPrty,
+					before: before,
+					after:  after,
+					extra:  extra
+				};
+			}
 
-            function convert(table){
-                return dojo.map(table, function(item){
-                    return convertItem.apply(this, item);
-                });
-            }
+			function convert(table){
+				return dojo.map(table, function(item){
+					return convertItem.apply(this, item);
+				});
+			}
 
-            var parser = new shards.opp.Parser("operand", convert(table), brackets);
+			var parser = new shards.opp.Parser("operand", convert(table), brackets);
 
-            var interpreter = {
-                    list: [],
-                    reset: function(){
-                        this.list = [];
-                    },
-                    putTerm: function(term){
-                        this.list.push(term);
-                    },
-                    result: function(){
-                        return dojo.map(this.list, function(term){
-                            switch(term.token.name){
-                                case "id":
-                                case "num":
-                                    return term.token.name + ":" + term.token.value;
-                                case "(":
-                                    if(term.state.extra){
-                                        return "(args...";
-                                    }
-                                    return "(";
-                                case "-":
-                                    if(term.state.extra){
-                                        return "u-";
-                                    }
-                                    return "-";
-                            }
-                            return term.token.name;
-                        }).join(" ");
-                    }
-                };
+			var interpreter = {
+					list: [],
+					reset: function(){
+						this.list = [];
+					},
+					putTerm: function(term){
+						this.list.push(term);
+					},
+					program: function(){
+						return dojo.map(this.list, function(term){
+							switch(term.token.name){
+								case "id":
+								case "num":
+									return term.token.name + ":" + term.token.value;
+								case "(":
+									if(term.state.extra){
+										return "(args...";
+									}
+									return "(";
+								case "-":
+									if(term.state.extra){
+										return "u-";
+									}
+									return "-";
+							}
+							return term.token.name;
+						}).join(" ");
+					},
+					result: function(){
+						var stack = [], arg1, arg2, func;
+						dojo.forEach(this.list, function(term){
+							switch(term.token.name){
+								case "id":
+									stack.push(term.token.value);
+									break;
+								case "num":
+									stack.push(parseFloat(term.token.value));
+									break;
+								case "(":
+									if(term.state.extra){
+										arg1 = stack.pop();
+										func = stack.pop();
+										stack.push(func + "(" + arg1 + ")");
+									}
+									break;
+								case ",":
+									arg2 = stack.pop();
+									arg1 = stack.pop();
+									stack.push(arg1 + ", " + arg2);
+									break;
+								case "*":
+									arg2 = stack.pop();
+									arg1 = stack.pop();
+									if(!isNaN(arg2)){
+										if(arg2 == 0){
+											stack.push(0);
+											break;
+										}else if(arg2 == 1){
+											stack.push(arg1);
+											break;
+										}
+									}
+									if(!isNaN(arg1)){
+										if(arg1 == 0){
+											stack.push(0);
+											break;
+										}else if(arg1 == 1){
+											stack.push(arg2);
+											break;
+										}
+									}
+									if(!isNaN(arg1) && !isNaN(arg2)){
+										stack.push(arg1 * arg2);
+										break;
+									}
+									stack.push("(" + arg1 + " * " + arg2 + ")");
+									break;
+								case "/":
+									arg2 = stack.pop();
+									arg1 = stack.pop();
+									if(!isNaN(arg2)){
+										if(arg2 == 1){
+											stack.push(arg1);
+											break;
+										}
+									}
+									if(!isNaN(arg1)){
+										if(arg1 == 0){
+											stack.push(0);
+											break;
+										}
+									}
+									if(!isNaN(arg1) && !isNaN(arg2)){
+										stack.push(arg1 / arg2);
+										break;
+									}
+									stack.push("(" + arg1 + " / " + arg2 + ")");
+									break;
+								case "+":
+									arg2 = stack.pop();
+									arg1 = stack.pop();
+									if(!isNaN(arg2)){
+										if(arg2 == 0){
+											stack.push(arg1);
+											break;
+										}
+									}
+									if(!isNaN(arg1)){
+										if(arg1 == 0){
+											stack.push(arg2);
+											break;
+										}
+									}
+									if(!isNaN(arg1) && !isNaN(arg2)){
+										stack.push(arg1 + arg2);
+										break;
+									}
+									stack.push("(" + arg1 + " + " + arg2 + ")");
+									break;
+								case "-":
+									if(term.state.extra){
+										arg1 = stack.pop();
+										if(!isNaN(arg1)){
+											stack.push(-arg1);
+										}else{
+											stack.push("-(" + arg1 + ")");
+										}
+										break;
+									}
+									arg2 = stack.pop();
+									arg1 = stack.pop();
+									if(!isNaN(arg2)){
+										if(arg2 == 0){
+											stack.push(arg1);
+											break;
+										}
+									}
+									if(!isNaN(arg1)){
+										if(arg1 == 0){
+											if(!isNaN(arg2)){
+												stack.push(-arg2);
+											}else{
+												stack.push("-(" + arg2 + ")");
+											}
+											break;
+										}
+									}
+									if(!isNaN(arg1) && !isNaN(arg2)){
+										stack.push(arg1 - arg2);
+										break;
+									}
+									stack.push("(" + arg1 + " - " + arg2 + ")");
+									break;
+							}
+						});
+						return stack[0];
+					}
+				};
 
-            function run(){
-                scanner.input = dojo.byId("input").value;
-                parser.reset();
-                interpreter.reset();
-                shards.opp.parse(parser, scanner, interpreter);
-                dojo.byId("output").innerHTML = "<code>" + interpreter.result() + "</code>";
-            }
+			function run(){
+				scanner.input = dojo.byId("input").value;
+				dojo.empty("output");
+				parser.reset();
+				interpreter.reset();
+				shards.opp.parse(parser, scanner, interpreter);
+				dojo.byId("output").innerHTML = "Program: <code>" + interpreter.program() + "</code><br>" +
+						"Result: " + interpreter.result();
+			}
 
-            dojo.ready(function(){
-                dojo.connect(dojo.byId("parse"), "onclick", run);
-            });
-        </script>
-    </head>
-    <body>
-        <h1>Testing parser</h1>
-        <p>Input:</p>
-        <div><textarea id="input"></textarea><br><button id="parse">Parse</button></div>
-        <p>Output:</p>
-        <div id="output"></div>
-    </body>
+			dojo.ready(function(){
+				dojo.connect(dojo.byId("parse"), "onclick", run);
+			});
+		</script>
+	</head>
+	<body>
+		<h1>Testing parser</h1>
+		<p>Input:</p>
+		<div><textarea id="input"></textarea><br><button id="parse">Parse</button></div>
+		<p>Output:</p>
+		<div id="output"></div>
+	</body>
 </html>
