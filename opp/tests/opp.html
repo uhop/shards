@@ -3,48 +3,72 @@
 	<head>
 		<title>Testing parser</title>
 		<script src="https://ajax.googleapis.com/ajax/libs/dojo/1.5/dojo/dojo.xd.js"></script>
-		<script src="../opp.js"></script>
+		<script src="../utils.js"></script>
+		<script src="../Parser.js"></script>
+		<script src="../Scanner.js"></script>
 		<script>
-			var scanner = {
-					input:    "",
-					getToken: function(){
-						// skip whitespaces
-						this.input = this.input.replace(/^\s+/, "");
-						var match = this.input.match(/^[A-Za-z_]\w*/);
-						if(match){
-							this.input = this.input.substr(match[0].length);
-							return {
-								name: "id",
-								value: match[0]
-							};
-						}
-						match = this.input.match(/^\d+(\.\d*)?/);
-						if(match){
-							this.input = this.input.substr(match[0].length);
-							return {
-								name: "num",
-								value: match[0]
-							};
-						}
-						match = this.input.match(/^(\+|\-|\/|\*|\(|\)|\,)/);
-						if(match){
-							this.input = this.input.substr(match[0].length);
-							return {
-								name:  match[0]
-							};
-						}
-						return {
-							name: "eos"
-						};
-					}
-				};
+			var rules = [
+					// whitespace
+					[/\s+/, function(match, rest, scanner){
+						// do nothing: ignore it
+						return scanner.continuation(rest);
+					}],
+					// id
+					[/[A-Za-z_]\w*/, function(match, rest, scanner){
+						scanner.tokens.push({name: "id", value: match});
+						return scanner.continuation(rest);
+					}],
+					// number
+					[/\d+(\.\d*)?/, function(match, rest, scanner){
+						scanner.tokens.push({name: "num", value: match});
+						return scanner.continuation(rest);
+					}],
+					// operator
+					[/\+|\-|\/|\*|\(|\)|\,/, function(match, rest, scanner){
+						scanner.tokens.push({name: match});
+						return scanner.continuation(rest);
+					}],
+					// comment
+					[/\/\*/, function(match, rest, scanner){
+						return scannerComment.continuation(rest);
+					}],
+					// end of stream
+					[/$/, function(match, rest, scanner){
+						scanner.tokens.push({name: scanner.eosName});
+						return null;    // stop
+					}]
+				];
+			var scannerMain = new shards.opp.Scanner(rules);
+
+			var commentRules = [
+					// text
+					[/[^\*]+/, function(match, rest, scanner){
+						scanner.text += match;
+						return scanner.continuation(rest);
+					}],
+					// text
+					[/\*/, function(match, rest, scanner){
+						scanner.text += match;
+						return scanner.continuation(rest);
+					}],
+					// end of comment
+					[/\*\//, function(match, rest, scanner){
+						scannerMain.tokens.push({name: "cmt", value: scanner.text});
+						scanner.text = "";
+						return scannerMain.continuation(rest);
+					}]
+				];
+			var scannerComment = new shards.opp.Scanner(commentRules);
+			scannerComment.text = "";
 
 			var brackets = "()";
-
-			var table = [
+			var states = [
 					// values
 					["id",  12000, 12000, "operand",  "operator"],
 					["num", 12000, 12000, "operand",  "operator"],
+					// comments
+					["cmt", 12001, 12001, "operand",  "operand" ],
+					["cmt", 12001, 12001, "operator", "operator"],
 					// arguments and parentheses
 					["(",   11998,     0, "operator", "operand", "arg"],    // argument block
 					[",",    2001,  2000, "operator", "operand" ],          // argument list
@@ -59,25 +83,7 @@
 					// end of stream
 					["eos",    -1,    -1, "operator", "operator"]
 				];
-
-			function convertItem(name, iPrty, oPrty, before, after, extra){
-				return {
-					name:   name,
-					iPrty:  iPrty,
-					oPrty:  oPrty,
-					before: before,
-					after:  after,
-					extra:  extra
-				};
-			}
-
-			function convert(table){
-				return dojo.map(table, function(item){
-					return convertItem.apply(this, item);
-				});
-			}
-
-			var parser = new shards.opp.Parser("operand", convert(table), brackets);
+			var parser = new shards.opp.Parser("operand", states, brackets);
 
 			var interpreter = {
 					list: [],
@@ -92,6 +98,7 @@
 							switch(term.token.name){
 								case "id":
 								case "num":
+								case "cmt":
 									return term.token.name + ":" + term.token.value;
 								case "(":
 									if(term.state.extra){
@@ -111,6 +118,9 @@
 						var stack = [], arg1, arg2, func;
 						dojo.forEach(this.list, function(term){
 							switch(term.token.name){
+								case "cmt":
+									// ignore
+									break;
 								case "id":
 									stack.push(term.token.value);
 									break;
@@ -239,13 +249,13 @@
 				};
 
 			function run(){
-				scanner.input = dojo.byId("input").value;
 				dojo.empty("output");
+				scannerMain.start(dojo.byId("input").value);
 				parser.reset();
 				interpreter.reset();
-				shards.opp.parse(parser, scanner, interpreter);
-				dojo.byId("output").innerHTML = "Program: <code>" + interpreter.program() + "</code><br>" +
-						"Result: " + interpreter.result();
+				shards.opp.parse(parser, scannerMain, interpreter);
+				dojo.byId("output").innerHTML  = "Program: <code>" + interpreter.program() + "</code>";
+				dojo.byId("output").innerHTML += "<br>Result: " + interpreter.result();
 			}
 
 			dojo.ready(function(){

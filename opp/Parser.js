@@ -1,5 +1,7 @@
 dojo.provide("shards.opp");
 
+dojo.require("shards.opp.utils");
+
 // Based on the classic stream-based operator precedence parser by Max Motovilov.
 // (c) 2000-2010 Max Motovilov, Eugene Lazutkin, used here under the BSD license
 
@@ -56,6 +58,8 @@ dojo.provide("shards.opp");
 		term: null,          // current term
 
 		constructor: function(init, table, brackets){
+			// transform table, if needed
+			table = shards.opp.utils.convert(table, shards.opp.convertState);
 			// split the table
 			this.tables = {};
 			dojo.forEach(table, function(item){
@@ -132,6 +136,19 @@ dojo.provide("shards.opp");
 	});
 
 	var consumeReadyState = {consume: 1, bracket: 1, eos: 1};
+
+	// helpers
+
+	shards.opp.convertState = function(name, iPrty, oPrty, before, after, extra){
+		return {
+			name:   name,
+			iPrty:  iPrty,
+			oPrty:  oPrty,
+			before: before,
+			after:  after,
+			extra:  extra
+		};
+	};
 
 	// "lazy" operations
 
