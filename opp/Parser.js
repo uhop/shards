@@ -14,7 +14,7 @@ dojo.require("shards.opp.utils");
 		oPrty:  7001,       // output priority
 		before: "operator", // expected state before
 		after:  "operand"   // state after
-		// state-specific data
+		// extra: state-specific data
 	}
 
 	Priority:
@@ -45,6 +45,15 @@ dojo.require("shards.opp.utils");
 		state: state    // see above
 	}
 
+	Brackets are either a bag of matching brackets:
+
+	{
+		"(": ")",
+		"[": "]"
+	}
+
+	Or a string of them (only for one-character brackets): "()[]"
+
 	Scanner produces tokens with the method "getToken()".
 
 	Interpreter consumes terms with the method "putTerm(term)".
@@ -59,7 +68,7 @@ dojo.require("shards.opp.utils");
 
 		constructor: function(init, table, brackets){
 			// transform table, if needed
-			table = shards.opp.utils.convert(table, shards.opp.convertState);
+			table = shards.opp.utils.convert(table, ["name", "iPrty", "oPrty", "before", "after", "extra"]);
 			// split the table
 			this.tables = {};
 			dojo.forEach(table, function(item){
@@ -70,10 +79,14 @@ dojo.require("shards.opp.utils");
 				table[item.name] = item;
 			}, this);
 			this.expected = this.init = init;
-			// split brackets
-			this.brackets = {};
-			for(var i = 0; i + 1 < brackets.length; i += 2){
-				this.brackets[brackets.charAt(i)] = brackets.charAt(i + 1);
+			if(typeof brackets == "string"){
+				// split brackets
+				this.brackets = {};
+				for(var i = 0; i + 1 < brackets.length; i += 2){
+					this.brackets[brackets.charAt(i)] = brackets.charAt(i + 1);
+				}
+			}else{
+				this.brackets = brackets;
 			}
 			// initialize internal variables
 			this.stack = [];
@@ -136,19 +149,6 @@ dojo.require("shards.opp.utils");
 	});
 
 	var consumeReadyState = {consume: 1, bracket: 1, eos: 1};
-
-	// helpers
-
-	shards.opp.convertState = function(name, iPrty, oPrty, before, after, extra){
-		return {
-			name:   name,
-			iPrty:  iPrty,
-			oPrty:  oPrty,
-			before: before,
-			after:  after,
-			extra:  extra
-		};
-	};
 
 	// "lazy" operations
 

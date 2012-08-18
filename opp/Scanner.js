@@ -27,7 +27,7 @@ dojo.require("shards.opp.utils");
 (function(){
 	dojo.declare("shards.opp.Scanner", null, {
 		constructor: function(rules, eosName){
-			this.rules = shards.opp.utils.convert(rules, shards.opp.convertRule);
+			this.rules = shards.opp.utils.convert(rules, convertRule);
 			this.eosName = eosName || "eos";
 		},
 		match: function(input){
@@ -69,12 +69,12 @@ dojo.require("shards.opp.utils");
 
 	// utilities
 
-	shards.opp.convertRule = function(regexp, action){
+	function convertRule(regexp, action){
 		return {
 			regexp: new RegExp("^(" + regexp.source + ")"),
 			action: action
 		};
-	};
+	}
 
 	// "lazy" operations
 
