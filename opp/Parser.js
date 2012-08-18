@@ -3,13 +3,13 @@ dojo.provide("shards.opp");
 dojo.require("shards.opp.utils");
 
 // Based on the classic stream-based operator precedence parser by Max Motovilov.
-// (c) 2000-2010 Max Motovilov, Eugene Lazutkin, used here under the BSD license
+// (c) 2000-2012 Max Motovilov, Eugene Lazutkin, used here under the BSD license
 
 /*
 	State table item is implemented by a naked object:
 
 	{
-		name:   "+",
+		name:   "+",        // token name
 		iPrty:  7000,       // input priority
 		oPrty:  7001,       // output priority
 		before: "operator", // expected state before
@@ -52,7 +52,7 @@ dojo.require("shards.opp.utils");
 		"[": "]"
 	}
 
-	Or a string of them (only for one-character brackets): "()[]"
+	Or a string of their pairs (only for one-character brackets): "()[]"
 
 	Scanner produces tokens with the method "getToken()".
 
