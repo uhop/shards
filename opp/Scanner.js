@@ -5,13 +5,24 @@ dojo.require("shards.opp.utils");
 // Based on ideas by Matt Might (http://matt.might.net/articles/lexing-and-syntax-highlighting-in-javascript/).
 
 /*
-	Rule table item is implemented by a naked object:
+	Rule table is implemented by a naked object:
 
 	{
-		regexp: /\d+/,                              // regular expression to match
-		action: function(match, rest, scanner){...} // action to take on match
-		// rule-specific data
+		"main": [   // state
+			{
+				regexp: /\d+/,                              // regular expression to match
+				action: function(match, rest, scanner){...} // action to take on match
+				after:  newState                            // new state
+			}
+		]
 	}
+
+	Individual item can be abbreviated as [regexp, action, after]
+
+	"action" can be a function as above, or "true" to create a token with its name equal to the match,
+	or an arbitrary string, which will be a token name, and the match will be its value.
+
+	"after" can be a string indicating a switch to a new state. If it is falsy, the old state is preserved.
 
 	Token is implemented by a naked object:
 
@@ -26,7 +37,7 @@ dojo.require("shards.opp.utils");
 
 (function(){
 	dojo.declare("shards.opp.Scanner", null, {
-		constructor: function(init, rules, eosName){
+		constructor: function(init, rules){
 			this.state = this.init = init;
 			this.rules = {};
 			for(var state in rules){
@@ -36,7 +47,6 @@ dojo.require("shards.opp.utils");
 							rule = {
 								regexp: rule[0],
 								action: rule[1],
-								value:  rule[2],
 								after:  rule[3]
 							};
 						}
@@ -47,14 +57,13 @@ dojo.require("shards.opp.utils");
 							}else if(rule.action === true){
 								rule.action = selfTokenSwitch(rule.after);
 							}else{
-								rule.action = (rule.value ? valueTokenSwitch : namedTokenSwitch)(rule.action, rule.after);
+								rule.action = valueTokenSwitch(rule.action, rule.after);
 							}
 						}
 						return rule;
 					});
 				}
 			}
-			this.eosName = eosName || "eos";
 		},
 		match: function(input){
 			var rule = -1, match = "", m,
@@ -91,7 +100,7 @@ dojo.require("shards.opp.utils");
 			if(this.tokens.length){
 				return this.tokens.shift();
 			}
-			return {name: this.eosName};
+			throw Error("Requested tokens when stream is empty");
 		}
 	});
 
@@ -125,24 +134,6 @@ dojo.require("shards.opp.utils");
 			};
 		}
 		return selfToken;
-	}
-
-	function namedToken(id){
-		return function(match, rest, scanner){
-			scanner.tokens.push({name: id});
-			return scanner.continuation(rest);
-		};
-	}
-
-	function namedTokenSwitch(id, newState){
-		if(newState){
-			return function(id){
-				scanner.tokens.push({name: id});
-				scanner.state = newState;
-				return scanner.continuation(rest);
-			};
-		}
-		return namedToken(id);
 	}
 
 	function valueToken(id){

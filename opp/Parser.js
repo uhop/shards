@@ -6,7 +6,7 @@ dojo.require("shards.opp.utils");
 // (c) 2000-2012 Max Motovilov, Eugene Lazutkin, used here under the BSD license
 
 /*
-	State table item is implemented by a naked object:
+	State table is implemented by a naked object:
 
 	{
 		"operator": {   // expected state before
@@ -18,6 +18,8 @@ dojo.require("shards.opp.utils");
 			}
 		}
 	}
+
+	Individual item can be abbreviated as [iPrty, oPrty, after, extra]
 
 	Priority:
 
