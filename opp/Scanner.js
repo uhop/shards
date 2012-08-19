@@ -1,7 +1,5 @@
 dojo.provide("shards.opp.Scanner");
 
-dojo.require("shards.opp.utils");
-
 // Based on ideas by Matt Might (http://matt.might.net/articles/lexing-and-syntax-highlighting-in-javascript/).
 
 /*

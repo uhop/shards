@@ -1,6 +1,4 @@
-dojo.provide("shards.opp");
-
-dojo.require("shards.opp.utils");
+dojo.provide("shards.opp.Parser");
 
 // Based on the classic stream-based operator precedence parser by Max Motovilov.
 // (c) 2000-2012 Max Motovilov, Eugene Lazutkin, used here under the BSD license
@@ -73,17 +71,25 @@ dojo.require("shards.opp.utils");
 		constructor: function(init, grammar, brackets){
 			this.expected = this.init = init;
 			// prepare grammar
-			var convertItem = shards.opp.utils.convertItem;
 			this.grammar = grammar;
 			for(var state in grammar){
 				if(grammar.hasOwnProperty(state)){
 					var table = grammar[state];
 					for(var token in table){
 						if(table.hasOwnProperty(token)){
-							var rule = table[token] = convertItem(table[token], ["iPrty", "oPrty", "after", "extra"]);
+							var rule = table[token];
+							if(rule instanceof Array){
+								rule = {
+									iPrty: rule[0],
+									oPrty: rule[1],
+									after: rule[2],
+									extra: rule[3]
+								};
+							}
 							if(!rule.after){
 								rule.after = state;
 							}
+							table[token] = rule;
 						}
 					}
 				}
@@ -124,7 +130,7 @@ dojo.require("shards.opp.utils");
 				return this.term;
 			}
 
-			//assert((this.state in lib.op.Parser.consumeReadyState) && this.stack.length);
+			//assert((this.state in consumeReadyState) && this.stack.length);
 			var t = this.stack.pop();
 
 			if(this.state == "consume"){
@@ -162,7 +168,7 @@ dojo.require("shards.opp.utils");
 
 	// "lazy" operations
 
-	// "pull" mode of operations
+	// "pull" mode
 	shards.opp.getTerm = function getNextTerm(parser, scanner){
 		while(parser.state == "supply"){
 			parser.supply(scanner.getToken());
@@ -170,7 +176,7 @@ dojo.require("shards.opp.utils");
 		return parser.state == "done" ? null : parser.consume();
 	};
 
-	// "push" mode of operations
+	// "push" mode
 	shards.opp.putToken = function putNextToken(parser, token, interpreter){
 		if(parser.state == "done"){
 			return false;
