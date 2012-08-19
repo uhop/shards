@@ -52,13 +52,7 @@ dojo.require("shards.opp.utils");
 						}
 						rule.regexp = new RegExp("^(" + rule.regexp.source + ")");
 						if(typeof rule.action != "function"){
-							if(!rule.action){
-								rule.action = switchNext(rule.after);
-							}else if(rule.action === true){
-								rule.action = selfTokenSwitch(rule.after);
-							}else{
-								rule.action = valueTokenSwitch(rule.action, rule.after);
-							}
+							rule.action = next(rule);
 						}
 						return rule;
 					});
@@ -106,52 +100,17 @@ dojo.require("shards.opp.utils");
 
 	// canned actions
 
-	function next(match, rest, scanner){
-		return scanner.continuation(rest);
-	}
-
-	function switchNext(newState){
-		if(newState){
-			return function(match, rest, scanner){
-				scanner.state = newState;
-				return scanner.continuation(rest);
-			};
-		}
-		return next;
-	}
-
-	function selfToken(match, rest, scanner){
-		scanner.tokens.push({name: match});
-		return scanner.continuation(rest);
-	}
-
-	function selfTokenSwitch(newState){
-		if(newState){
-			return function(match, rest, scanner){
-				scanner.tokens.push({name: match});
-				scanner.state = newState;
-				return scanner.continuation(rest);
-			};
-		}
-		return selfToken;
-	}
-
-	function valueToken(id){
+	function next(rule){
+		var action = rule.action, after = rule.after;
 		return function(match, rest, scanner){
-			scanner.tokens.push({name: id, value: match});
-			return scanner.continuation(rest);
+			if(action){
+				scanner.tokens.push({name: action === true ? match : action, value: match});
+			}
+			if(after){
+				scanner.state = after;
+			}
+			return after === false ? null : scanner.continuation(rest);
 		};
-	}
-
-	function valueTokenSwitch(id, newState){
-		if(newState){
-			return function(id){
-				scanner.tokens.push({name: id, value: match});
-				scanner.state = newState;
-				return scanner.continuation(rest);
-			};
-		}
-		return valueToken(id);
 	}
 
 	// "lazy" operations
