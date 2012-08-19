@@ -1,5 +1,16 @@
 dojo.provide("shards.opp.utils");
 
+shards.opp.utils.convertItem = function(item, names){
+	if(item instanceof Array){
+		var o = {};
+		dojo.forEach(names, function(name, i){
+			o[name] = item[i];
+		});
+		return o;
+	}
+	return item;
+};
+
 shards.opp.utils.convert = function(table, convert){
 	if(convert instanceof Array){
 		return dojo.map(table, function(item){

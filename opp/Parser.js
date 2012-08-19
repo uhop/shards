@@ -9,12 +9,14 @@ dojo.require("shards.opp.utils");
 	State table item is implemented by a naked object:
 
 	{
-		name:   "+",        // token name
-		iPrty:  7000,       // input priority
-		oPrty:  7001,       // output priority
-		before: "operator", // expected state before
-		after:  "operand"   // state after
-		// extra: state-specific data
+		"operator": {   // expected state before
+			"+": {      // token name
+				iPrty:  7000,       // input priority
+				oPrty:  7001,       // output priority
+				after:  "operand"   // state after or falsy if the same as before
+				// extra: state-specific data
+			}
+		}
 	}
 
 	Priority:
@@ -66,19 +68,25 @@ dojo.require("shards.opp.utils");
 		expected: "",        // currently expected input
 		term: null,          // current term
 
-		constructor: function(init, table, brackets){
-			// transform table, if needed
-			table = shards.opp.utils.convert(table, ["name", "iPrty", "oPrty", "before", "after", "extra"]);
-			// split the table
-			this.tables = {};
-			dojo.forEach(table, function(item){
-				var table = this.tables[item.before];
-				if(!table){
-					table = this.tables[item.before] = {};
-				}
-				table[item.name] = item;
-			}, this);
+		constructor: function(init, grammar, brackets){
 			this.expected = this.init = init;
+			// prepare grammar
+			var convertItem = shards.opp.utils.convertItem;
+			this.grammar = grammar;
+			for(var state in grammar){
+				if(grammar.hasOwnProperty(state)){
+					var table = grammar[state];
+					for(var token in table){
+						if(table.hasOwnProperty(token)){
+							var rule = table[token] = convertItem(table[token], ["iPrty", "oPrty", "after", "extra"]);
+							if(!rule.after){
+								rule.after = state;
+							}
+						}
+					}
+				}
+			}
+			// prepare brackets
 			if(typeof brackets == "string"){
 				// split brackets
 				this.brackets = {};
@@ -100,7 +108,7 @@ dojo.require("shards.opp.utils");
 
 		supply: function(token){
 			//assert(this.state == "supply");
-			var newState = this.tables[this.expected][token.name];
+			var newState = this.grammar[this.expected][token.name];
 			if(!newState){
 				throw Error("Unknown input symbol: " + token.name + ", " + this.expected + " was expected");
 			}

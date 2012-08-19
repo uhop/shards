@@ -7,82 +7,58 @@
 		<script src="../Parser.js"></script>
 		<script src="../Scanner.js"></script>
 		<script>
-			var rules = [
-					// whitespace
-					[/\s+/, function(match, rest, scanner){
-						// do nothing: ignore it
-						return scanner.continuation(rest);
-					}],
-					// id
-					[/[A-Za-z_]\w*/, function(match, rest, scanner){
-						scanner.tokens.push({name: "id", value: match});
-						return scanner.continuation(rest);
-					}],
-					// number
-					[/\d+(\.\d*)?/, function(match, rest, scanner){
-						scanner.tokens.push({name: "num", value: match});
-						return scanner.continuation(rest);
-					}],
-					// operator
-					[/\+|\-|\/|\*|\(|\)|\,/, function(match, rest, scanner){
-						scanner.tokens.push({name: match});
-						return scanner.continuation(rest);
-					}],
-					// comment
-					[/\/\*/, function(match, rest, scanner){
-						return scannerComment.continuation(rest);
-					}],
-					// end of stream
-					[/$/, function(match, rest, scanner){
-						scanner.tokens.push({name: scanner.eosName});
-						return null;    // stop
-					}]
-				];
-			var scannerMain = new shards.opp.Scanner(rules);
-
-			var commentRules = [
-					// text
-					[/[^\*]+/, function(match, rest, scanner){
-						scanner.text += match;
-						return scanner.continuation(rest);
-					}],
-					// text
-					[/\*/, function(match, rest, scanner){
-						scanner.text += match;
-						return scanner.continuation(rest);
-					}],
-					// end of comment
-					[/\*\//, function(match, rest, scanner){
-						scannerMain.tokens.push({name: "cmt", value: scanner.text});
-						scanner.text = "";
-						return scannerMain.continuation(rest);
-					}]
-				];
-			var scannerComment = new shards.opp.Scanner(commentRules);
-			scannerComment.text = "";
+			var rules = {
+					main: [
+						// whitespace
+						[/\s+/],
+						// id
+						[/[A-Za-z_]\w*/, "id", true],
+						// number
+						[/\d+(\.\d*)?([eE][+-]?\d+)?/, "num", true],
+						// operator
+						[/\+|\-|\/|\*|\(|\)|\,/, true],
+						// comment
+						[/\/\*/,,, "comment"],
+						// end of stream
+						[/$/, "eos"]
+					],
+					comment: [
+						// text
+						[/[^\*]+/],
+						// text
+						[/\*/],
+						// end of comment
+						[/\*\//,,, "main"]
+					]
+				};
+			var scanner = new shards.opp.Scanner("main", rules);
+			scanner.text = "";
 
 			var brackets = "()";
-			var states = [
-					// values
-					["id",  12000, 12000, "operand",  "operator"],
-					["num", 12000, 12000, "operand",  "operator"],
-					// comments
-					["cmt", 12001, 12001, "operand",  "operand" ],
-					["cmt", 12001, 12001, "operator", "operator"],
-					// arguments and parentheses
-					["(",   11998,     0, "operator", "operand", "arg"],    // argument block
-					[",",    2001,  2000, "operator", "operand" ],          // argument list
-					["(",   12000,     0, "operand",  "operand" ],
-					[")",       0, 12000, "operator", "operator"],
-					// arithmetic operators
-					["+",    7000,  7001, "operator", "operand" ],
-					["-",    7000,  7001, "operator", "operand" ],
-					["*",    8000,  8001, "operator", "operand" ],
-					["/",    8000,  8001, "operator", "operand" ],
-					["-",   12000,  7001, "operand",  "operand", "arg"],
-					// end of stream
-					["eos",    -1,    -1, "operator", "operator"]
-				];
+			var states = {
+					operand: {
+						// values
+						id:  [12000, 12000, "operator"],
+						num: [12000, 12000, "operator"],
+						// arguments and parentheses
+						"(": [12000,     0],
+						// arithmetic operators
+						"-": [12000,  7001, , "arg"]
+					},
+					operator: {
+						// arguments and parentheses
+						"(": [11998,     0, "operand", "arg"],    // argument block
+						",": [ 2001,  2000, "operand" ],          // argument list
+						")": [    0, 12000],
+						// arithmetic operators
+						"+": [ 7000,  7001, "operand" ],
+						"-": [ 7000,  7001, "operand" ],
+						"*": [ 8000,  8001, "operand" ],
+						"/": [ 8000,  8001, "operand" ],
+						// end of stream
+						eos: [   -1,    -1]
+					}
+				};
 			var parser = new shards.opp.Parser("operand", states, brackets);
 
 			var interpreter = {
@@ -250,10 +226,10 @@
 
 			function run(){
 				dojo.empty("output");
-				scannerMain.start(dojo.byId("input").value);
+				scanner.start(dojo.byId("input").value);
 				parser.reset();
 				interpreter.reset();
-				shards.opp.parse(parser, scannerMain, interpreter);
+				shards.opp.parse(parser, scanner, interpreter);
 				dojo.byId("output").innerHTML  = "Program: <code>" + interpreter.program() + "</code>";
 				dojo.byId("output").innerHTML += "<br>Result: " + interpreter.result();
 			}

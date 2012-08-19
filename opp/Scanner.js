@@ -26,21 +26,48 @@ dojo.require("shards.opp.utils");
 
 (function(){
 	dojo.declare("shards.opp.Scanner", null, {
-		constructor: function(rules, eosName){
-			this.rules = shards.opp.utils.convert(rules, convertRule);
+		constructor: function(init, rules, eosName){
+			this.state = this.init = init;
+			this.rules = {};
+			for(var state in rules){
+				if(rules.hasOwnProperty(state)){
+					this.rules[state] = dojo.map(rules[state], function(rule){
+						if(rule instanceof Array){
+							rule = {
+								regexp: rule[0],
+								action: rule[1],
+								value:  rule[2],
+								after:  rule[3]
+							};
+						}
+						rule.regexp = new RegExp("^(" + rule.regexp.source + ")");
+						if(typeof rule.action != "function"){
+							if(!rule.action){
+								rule.action = switchNext(rule.after);
+							}else if(rule.action === true){
+								rule.action = selfTokenSwitch(rule.after);
+							}else{
+								rule.action = (rule.value ? valueTokenSwitch : namedTokenSwitch)(rule.action, rule.after);
+							}
+						}
+						return rule;
+					});
+				}
+			}
 			this.eosName = eosName || "eos";
 		},
 		match: function(input){
-			var rule = -1, match = "", m, i = this.rules.length - 1;
+			var rule = -1, match = "", m,
+				rules = this.rules[this.state], i = rules.length - 1;
 			for(; i >= 0; --i){
-				m = input.match(this.rules[i].regexp);
+				m = input.match(rules[i].regexp);
 				if(m && m[1].length >= match.length){
 					match = m[1];
 					rule = i;
 				}
 			}
 			if(rule >= 0){
-				return this.rules[rule].action(match, input.substring(match.length), this);
+				return rules[rule].action(match, input.substring(match.length), this);
 			}
 			throw Error("No match found for input");
 		},
@@ -52,6 +79,7 @@ dojo.require("shards.opp.utils");
 		},
 		// public API
 		start: function(input){
+			this.state = this.init;
 			this.tokens = [];
 			this.next = this.match(input);
 		},
@@ -67,13 +95,72 @@ dojo.require("shards.opp.utils");
 		}
 	});
 
-	// utilities
+	// canned actions
 
-	function convertRule(regexp, action){
-		return {
-			regexp: new RegExp("^(" + regexp.source + ")"),
-			action: action
+	function next(match, rest, scanner){
+		return scanner.continuation(rest);
+	}
+
+	function switchNext(newState){
+		if(newState){
+			return function(match, rest, scanner){
+				scanner.state = newState;
+				return scanner.continuation(rest);
+			};
+		}
+		return next;
+	}
+
+	function selfToken(match, rest, scanner){
+		scanner.tokens.push({name: match});
+		return scanner.continuation(rest);
+	}
+
+	function selfTokenSwitch(newState){
+		if(newState){
+			return function(match, rest, scanner){
+				scanner.tokens.push({name: match});
+				scanner.state = newState;
+				return scanner.continuation(rest);
+			};
+		}
+		return selfToken;
+	}
+
+	function namedToken(id){
+		return function(match, rest, scanner){
+			scanner.tokens.push({name: id});
+			return scanner.continuation(rest);
 		};
+	}
+
+	function namedTokenSwitch(id, newState){
+		if(newState){
+			return function(id){
+				scanner.tokens.push({name: id});
+				scanner.state = newState;
+				return scanner.continuation(rest);
+			};
+		}
+		return namedToken(id);
+	}
+
+	function valueToken(id){
+		return function(match, rest, scanner){
+			scanner.tokens.push({name: id, value: match});
+			return scanner.continuation(rest);
+		};
+	}
+
+	function valueTokenSwitch(id, newState){
+		if(newState){
+			return function(id){
+				scanner.tokens.push({name: id, value: match});
+				scanner.state = newState;
+				return scanner.continuation(rest);
+			};
+		}
+		return valueToken(id);
 	}
 
 	// "lazy" operations
