@@ -17,7 +17,7 @@
 						// operator
 						[/\+|\-|\/|\*|\(|\)|\,/, true],
 						// comment
-						[/\/\*/,,, "comment"],
+						[/\/\*/,, "comment"],
 						// end of stream
 						[/$/, "eos"]
 					],
@@ -27,7 +27,7 @@
 						// text
 						[/\*/],
 						// end of comment
-						[/\*\//,,, "main"]
+						[/\*\//,, "main"]
 					]
 				};
 			var scanner = new shards.opp.Scanner("main", rules);

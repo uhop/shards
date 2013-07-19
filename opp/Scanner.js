@@ -45,7 +45,7 @@ dojo.provide("shards.opp.Scanner");
 							rule = {
 								regexp: rule[0],
 								action: rule[1],
-								after:  rule[3]
+								after:  rule[2]
 							};
 						}
 						rule.regexp = new RegExp("^(" + rule.regexp.source + ")");
