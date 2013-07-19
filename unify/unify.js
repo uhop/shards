@@ -1,6 +1,7 @@
 dojo.provide("shards.unify");
 
 (function(){
+	"use strict";
 
 	// AnyVar
 
